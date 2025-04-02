@@ -1,9 +1,6 @@
 package cli
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/spf13/cobra"
 )
 
@@ -14,9 +11,6 @@ var rootCmd = &cobra.Command{
 using values from a YAML file, similar to how Helm works.`,
 }
 
-func Execute() {
-	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
+func Execute() error {
+	return rootCmd.Execute()
 }

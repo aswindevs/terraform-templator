@@ -2,6 +2,10 @@ package entity
 
 // Chart represents a Terraform template chart
 type Chart struct {
+	Name        string `yaml:"name"`
+	Version     string `yaml:"version"`
+	Description string `yaml:"description,omitempty"`
+	Type        string `yaml:"type,omitempty"`
 	Metadata    ChartMetadata
 	Values      map[string]interface{}
 	Templates   []ChartTemplate
@@ -36,6 +40,6 @@ type ChartTemplate struct {
 
 // ChartRepository defines the interface for chart operations
 type ChartRepository interface {
-	LoadChart(path string) (*Chart, error)
+	LoadChart(path string, valuesFile string) (*Chart, error)
 	ValidateChart(chart *Chart) error
 }
