@@ -1,0 +1,26 @@
+name: base-infra
+version: 1.0.0
+description: A comprehensive base infrastructure chart for AWS including VPC, ECS, and essential resources
+type: aws
+author: Your Name
+home: https://github.com/yourusername/terraform-templator
+keywords:
+  - aws
+  - infrastructure
+  - vpc
+  - ecs
+  - terraform
+  - base
+maintainers:
+  - name: Your Name
+    email: your.email@example.com
+    url: https://github.com/yourusername
+modules:
+  - name : rds
+    enabled: true
+    path: modules/rds
+  - name : ecs
+    enabled: true
+    path: modules/ecs
+  - name : vpc
+    enabled: true

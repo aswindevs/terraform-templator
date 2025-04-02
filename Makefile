@@ -1,7 +1,7 @@
 .PHONY: build run test clean cli-build cli-run
 
 # Build variables
-BINARY_NAME=terraform-templator
+BINARY_NAME=terraformesh
 BUILD_DIR=build
 
 # Go commands
@@ -19,7 +19,7 @@ build:
 # Build the CLI
 cli-build:
 	mkdir -p $(BUILD_DIR)
-	$(GOBUILD) -o $(BUILD_DIR)/$(BINARY_NAME)-cli ./cmd/cli/main.go
+	$(GOBUILD) -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/cli/main.go
 
 # Run the application
 run:
