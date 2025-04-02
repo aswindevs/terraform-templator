@@ -1,7 +1,6 @@
 package repo
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,7 +10,6 @@ import (
 	"terraform-templator/internal/logger"
 
 	"github.com/Masterminds/sprig/v3"
-	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 )
 
@@ -49,63 +47,63 @@ func (r *templateRepo) RenderChart(chartPath, outputDir, valuesFile string) erro
 }
 
 func (r *templateRepo) LoadChart(chartPath string) (*entity.Chart, error) {
-	logger.Debug("Loading chart", zap.String("path", chartPath))
+	logger.Debug("Loading chart", logger.String("path", chartPath))
 
 	// Read Chart.yaml
 	chartData, err := os.ReadFile(filepath.Join(chartPath, "Chart.yaml"))
 	if err != nil {
-		return nil, fmt.Errorf("failed to read Chart.yaml: %w", err)
+		return nil, logger.Error("Failed to read Chart.yaml", logger.ErrorField("error", err))
 	}
 
 	var chart entity.Chart
 	if err := yaml.Unmarshal(chartData, &chart); err != nil {
-		return nil, fmt.Errorf("failed to parse Chart.yaml: %w", err)
+		return nil, logger.Error("Failed to parse Chart.yaml", logger.ErrorField("error", err))
 	}
 
 	// Load templates
 	templatesDir := filepath.Join(chartPath, "templates")
 	if err := os.MkdirAll(templatesDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create templates directory: %w", err)
+		return nil, logger.Error("Failed to create templates directory", logger.ErrorField("error", err))
 	}
 
 	files, err := os.ReadDir(templatesDir)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read templates directory: %w", err)
+		return nil, logger.Error("Failed to read templates directory", logger.ErrorField("error", err))
 	}
 
 	for _, file := range files {
 		if !file.IsDir() && strings.HasSuffix(file.Name(), ".tf") {
 			content, err := os.ReadFile(filepath.Join(templatesDir, file.Name()))
 			if err != nil {
-				return nil, fmt.Errorf("failed to read template %s: %w", file.Name(), err)
+				return nil, logger.Error("Failed to read template", logger.String("name", file.Name()), logger.ErrorField("error", err))
 			}
 			chart.Templates = append(chart.Templates, entity.ChartTemplate{
 				Name:    file.Name(),
 				Content: string(content),
 			})
-			logger.Debug("Loaded template", zap.String("name", file.Name()))
+			logger.Debug("Loaded template", logger.String("name", file.Name()))
 		}
 	}
 
 	logger.Info("Chart loaded successfully",
-		zap.String("name", chart.Name),
-		zap.String("version", chart.Version),
-		zap.Int("template_count", len(chart.Templates)))
+		logger.String("name", chart.Name),
+		logger.String("version", chart.Version),
+		logger.Int("template_count", len(chart.Templates)))
 	return &chart, nil
 }
 
 func (r *templateRepo) ValidateChart(chart *entity.Chart) error {
 	if chart == nil {
-		return fmt.Errorf("chart is nil")
+		return logger.Error("Chart is nil")
 	}
 	if chart.Name == "" {
-		return fmt.Errorf("chart name is required")
+		return logger.Error("Chart name is required")
 	}
 	if chart.Version == "" {
-		return fmt.Errorf("chart version is required")
+		return logger.Error("Chart version is required")
 	}
 	if len(chart.Templates) == 0 {
-		return fmt.Errorf("no templates found in chart")
+		return logger.Error("No templates found in chart")
 	}
 	logger.Debug("Chart validation successful")
 	return nil
@@ -117,19 +115,19 @@ func (r *templateRepo) RenderTemplate(tmpl entity.ChartTemplate, values map[stri
 	outputPath := filepath.Join(outputDir, tmpl.Name)
 
 	logger.Debug("Processing template",
-		zap.String("name", tmpl.Name),
-		zap.String("key", templateKey))
+		logger.String("name", tmpl.Name),
+		logger.String("key", templateKey))
 
 	// Check if template is enabled in values
 	if _, exists := values[templateKey]; !exists {
 		// Delete the file if it exists
 		if err := os.Remove(outputPath); err != nil && !os.IsNotExist(err) {
 			logger.Error("Failed to remove unconfigured file",
-				zap.String("file", outputPath),
-				zap.Error(err))
-			return fmt.Errorf("failed to remove unconfigured file %s: %w", outputPath, err)
+				logger.String("file", outputPath),
+				logger.ErrorField("error", err))
+			return logger.Error("Failed to remove unconfigured file", logger.String("name", tmpl.Name), logger.ErrorField("error", err))
 		}
-		logger.Info("Removed unconfigured template", zap.String("name", tmpl.Name))
+		logger.Info("Removed unconfigured template", logger.String("name", tmpl.Name))
 		return nil
 	}
 
@@ -138,34 +136,34 @@ func (r *templateRepo) RenderTemplate(tmpl entity.ChartTemplate, values map[stri
 		Parse(tmpl.Content)
 	if err != nil {
 		logger.Error("Failed to parse template",
-			zap.String("name", tmpl.Name),
-			zap.Error(err))
-		return fmt.Errorf("failed to parse template %s: %w", tmpl.Name, err)
+			logger.String("name", tmpl.Name),
+			logger.ErrorField("error", err))
+		return logger.Error("Failed to parse template", logger.String("name", tmpl.Name), logger.ErrorField("error", err))
 	}
 
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
 		logger.Error("Failed to create output directory",
-			zap.String("path", filepath.Dir(outputPath)),
-			zap.Error(err))
-		return fmt.Errorf("failed to create output directory: %w", err)
+			logger.String("path", filepath.Dir(outputPath)),
+			logger.ErrorField("error", err))
+		return logger.Error("Failed to create output directory", logger.String("path", filepath.Dir(outputPath)), logger.ErrorField("error", err))
 	}
 
 	f, err := os.Create(outputPath)
 	if err != nil {
 		logger.Error("Failed to create output file",
-			zap.String("path", outputPath),
-			zap.Error(err))
-		return fmt.Errorf("failed to create output file %s: %w", outputPath, err)
+			logger.String("path", outputPath),
+			logger.ErrorField("error", err))
+		return logger.Error("Failed to create output file", logger.String("path", outputPath), logger.ErrorField("error", err))
 	}
 	defer f.Close()
 
 	if err := template.Execute(f, values); err != nil {
 		logger.Error("Failed to render template",
-			zap.String("name", tmpl.Name),
-			zap.Error(err))
-		return fmt.Errorf("failed to render template %s: %w", tmpl.Name, err)
+			logger.String("name", tmpl.Name),
+			logger.ErrorField("error", err))
+		return logger.Error("Failed to render template", logger.String("name", tmpl.Name), logger.ErrorField("error", err))
 	}
 
-	logger.Info("Rendered template successfully", zap.String("name", tmpl.Name))
+	logger.Info("Rendered template successfully", logger.String("name", tmpl.Name))
 	return nil
 }

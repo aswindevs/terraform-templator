@@ -1,13 +1,11 @@
 package cli
 
 import (
-	"fmt"
 	"terraform-templator/internal/logger"
 	"terraform-templator/internal/repo"
 	"terraform-templator/internal/usecase"
 
 	"github.com/spf13/cobra"
-	"go.uber.org/zap"
 )
 
 var (
@@ -24,9 +22,9 @@ Example:
   terraform-templator render --chart ./charts/aws-vpc --output ./output`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		logger.Debug("Starting render command",
-			zap.String("chart_path", chartPath),
-			zap.String("output_dir", outputDir),
-			zap.String("values_file", valuesFile))
+			logger.String("chart_path", chartPath),
+			logger.String("output_dir", outputDir),
+			logger.String("values_file", valuesFile))
 
 		// Initialize dependencies
 		templateRepo := repo.NewTemplateRepo()
@@ -34,23 +32,21 @@ Example:
 
 		// Validate inputs
 		if chartPath == "" {
-			err := fmt.Errorf("chart path is required")
-			logger.Error("Invalid input", zap.Error(err))
-			return err
+			return logger.Error("Invalid input - chart path is required")
 		}
 		if valuesFile == "" {
 			valuesFile = "values.yaml"
-			logger.Info("Using default values file", zap.String("file", valuesFile))
+			logger.Info("Using default values file", logger.String("file", valuesFile))
 		}
 
 		// Render chart
 		if err := templateUseCase.RenderChart(valuesFile, chartPath, outputDir); err != nil {
-			logger.Error("Chart rendering failed", zap.Error(err))
-			return fmt.Errorf("failed to render chart: %w", err)
+			return logger.Error("Chart rendering failed", logger.ErrorField("error", err))
+
 		}
 
 		logger.Info("Chart rendering completed successfully",
-			zap.String("output_dir", outputDir))
+			logger.String("output_dir", outputDir))
 		return nil
 	},
 }

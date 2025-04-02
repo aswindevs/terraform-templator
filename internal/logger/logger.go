@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"fmt"
 	"os"
 
 	"go.uber.org/zap"
@@ -8,6 +9,12 @@ import (
 )
 
 var log *zap.Logger
+
+// Field represents a key-value pair for structured logging
+type Field struct {
+	Key   string
+	Value interface{}
+}
 
 func init() {
 	// Set default log level from environment or default to info
@@ -20,89 +27,87 @@ func init() {
 		logMode = "console"
 	}
 
-	// Configure log level
-	var level zapcore.Level
+	config := zap.NewProductionConfig()
+	config.EncoderConfig.TimeKey = "timestamp"
+	config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+
+	// Set log level from environment variable
 	switch logLevel {
 	case "debug":
-		level = zapcore.DebugLevel
-	case "info":
-		level = zapcore.InfoLevel
+		config.Level = zap.NewAtomicLevelAt(zapcore.DebugLevel)
 	case "warn":
-		level = zapcore.WarnLevel
+		config.Level = zap.NewAtomicLevelAt(zapcore.WarnLevel)
 	case "error":
-		level = zapcore.ErrorLevel
+		config.Level = zap.NewAtomicLevelAt(zapcore.ErrorLevel)
 	default:
-		level = zapcore.InfoLevel
+		config.Level = zap.NewAtomicLevelAt(zapcore.InfoLevel)
 	}
 
-	// Create encoder config
-	var encoder zapcore.Encoder
 	if logMode == "json" {
-		encoder = zapcore.NewJSONEncoder(zapcore.EncoderConfig{
-			TimeKey:        "time",
-			LevelKey:       "level",
-			NameKey:        "logger",
-			CallerKey:      "caller",
-			MessageKey:     "msg",
-			StacktraceKey:  "stacktrace",
-			LineEnding:     zapcore.DefaultLineEnding,
-			EncodeLevel:    zapcore.CapitalLevelEncoder,
-			EncodeTime:     zapcore.ISO8601TimeEncoder,
-			EncodeDuration: zapcore.SecondsDurationEncoder,
-			EncodeCaller:   zapcore.ShortCallerEncoder,
-		})
+		config.Encoding = "json"
 	} else {
-		encoder = zapcore.NewConsoleEncoder(zapcore.EncoderConfig{
-			TimeKey:        "time",
-			LevelKey:       "level",
-			NameKey:        "logger",
-			CallerKey:      "caller",
-			MessageKey:     "msg",
-			StacktraceKey:  "stacktrace",
-			LineEnding:     zapcore.DefaultLineEnding,
-			EncodeLevel:    zapcore.CapitalLevelEncoder,
-			EncodeTime:     zapcore.ISO8601TimeEncoder,
-			EncodeDuration: zapcore.SecondsDurationEncoder,
-			EncodeCaller:   zapcore.ShortCallerEncoder,
-		})
+		config.Encoding = "console"
 	}
-	// Create core
-	core := zapcore.NewCore(
-		encoder,
-		zapcore.AddSync(os.Stdout),
-		level,
-	)
 
-	// Create logger
-	log = zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))
+	var err error
+	log, err = config.Build()
+	if err != nil {
+		panic(err)
+	}
 }
 
-// Debug logs a debug message
-func Debug(msg string, fields ...zap.Field) {
-	log.Debug(msg, fields...)
+// convertFields converts our Field type to zap.Field
+func convertFields(fields []Field) []zap.Field {
+	zapFields := make([]zap.Field, len(fields))
+	for i, f := range fields {
+		zapFields[i] = zap.Any(f.Key, f.Value)
+	}
+	return zapFields
 }
 
-// Info logs an info message
-func Info(msg string, fields ...zap.Field) {
-	log.Info(msg, fields...)
+// String creates a string field
+func String(key string, value string) Field {
+	return Field{Key: key, Value: value}
 }
 
-// Warn logs a warning message
-func Warn(msg string, fields ...zap.Field) {
-	log.Warn(msg, fields...)
+// Int creates an integer field
+func Int(key string, value int) Field {
+	return Field{Key: key, Value: value}
 }
 
-// Error logs an error message
-func Error(msg string, fields ...zap.Field) {
-	log.Error(msg, fields...)
+// Error creates an error field
+func ErrorField(key string, value error) Field {
+	return Field{Key: key, Value: value}
+}
+
+// Debug logs a debug message with structured fields
+func Debug(msg string, fields ...Field) {
+	log.Debug(msg, convertFields(fields)...)
+}
+
+// Info logs an info message with structured fields
+func Info(msg string, fields ...Field) {
+	log.Info(msg, convertFields(fields)...)
+}
+
+// Warn logs a warning message with structured fields
+func Warn(msg string, fields ...Field) {
+	log.Warn(msg, convertFields(fields)...)
+}
+
+// Error logs an error message with structured fields and returns an error
+func Error(msg string, fields ...Field) error {
+	log.Error(msg, convertFields(fields)...)
+	return fmt.Errorf(msg)
 }
 
 // Fatal logs a fatal message and exits
-func Fatal(msg string, fields ...zap.Field) {
-	log.Fatal(msg, fields...)
+func Fatal(msg string, fields ...Field) {
+	log.Fatal(msg, convertFields(fields)...)
+	os.Exit(1)
 }
 
 // With creates a child logger with the given fields
-func With(fields ...zap.Field) *zap.Logger {
-	return log.With(fields...)
+func With(fields ...Field) *zap.Logger {
+	return log.With(convertFields(fields)...)
 }

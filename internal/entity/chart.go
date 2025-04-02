@@ -37,9 +37,3 @@ type ChartTemplate struct {
 	Path    string
 	Content string
 }
-
-// ChartRepository defines the interface for chart operations
-type ChartRepository interface {
-	LoadChart(path string, valuesFile string) (*Chart, error)
-	ValidateChart(chart *Chart) error
-}

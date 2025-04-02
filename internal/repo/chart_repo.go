@@ -1,12 +1,12 @@
 package repo
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"terraform-templator/internal/entity"
+	"terraform-templator/internal/logger"
 
 	"gopkg.in/yaml.v2"
 )
@@ -61,27 +61,26 @@ func (r *chartRepo) LoadChart(chartPath, valuesFile string) (*entity.Chart, erro
 	return &chart, nil
 }
 
-
 func (r *chartRepo) ValidateChart(chart *entity.Chart) error {
 	// Validate required fields
 	if chart.Metadata.Name == "" {
-		return fmt.Errorf("chart name is required")
+		return logger.Error("Chart validation failed", logger.String("error", "chart name is required"))
 	}
 	if chart.Metadata.Version == "" {
-		return fmt.Errorf("chart version is required")
+		return logger.Error("Chart validation failed", logger.String("error", "chart version is required"))
 	}
 	if chart.Metadata.Type == "" {
-		return fmt.Errorf("chart type is required")
+		return logger.Error("Chart validation failed", logger.String("error", "chart type is required"))
 	}
 
 	// Validate templates
 	if len(chart.Templates) == 0 {
-		return fmt.Errorf("chart must contain at least one template")
+		return logger.Error("Chart validation failed", logger.String("error", "chart must contain at least one template"))
 	}
 
 	// Validate values
 	if len(chart.Values) == 0 {
-		return fmt.Errorf("chart must contain values")
+		return logger.Error("Chart validation failed", logger.String("error", "chart must contain values"))
 	}
 
 	return nil
