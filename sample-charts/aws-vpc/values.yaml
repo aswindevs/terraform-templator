@@ -1,0 +1,26 @@
+project:
+  name: my-project
+  environment: dev
+  region: us-west-2
+
+vpc:
+  enable: true
+  cidr: 10.0.0.0/16
+  enable_nat_gateway: true
+  enable_vpn: false
+  subnets:
+    - cidr: 10.0.1.0/24
+      type: public
+      availability_zone: us-west-2a
+    - cidr: 10.0.2.0/24
+      type: private
+      availability_zone: us-west-2b
+    - cidr: 10.0.3.0/24
+      type: private
+      availability_zone: us-west-2c
+
+tags:
+  Environment: "{{ .project.environment }}"
+  Project: "{{ .project.name }}"
+  ManagedBy: terraform-templator
+  Created: "{{ now | date \"2006-01-02\" }}" 

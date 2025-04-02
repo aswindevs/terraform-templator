@@ -5,9 +5,9 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "terraform-templator",
+	Use:   "terraformesh",
 	Short: "A tool for rendering Terraform templates",
-	Long: `Terraform Templator is a CLI tool that helps you render Terraform templates
+	Long: `Terraformesh is a CLI tool that helps you render Terraform templates
 using values from a YAML file, similar to how Helm works.`,
 }
 
