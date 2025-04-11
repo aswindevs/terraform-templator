@@ -9,17 +9,16 @@ terraform {
   required_version = ">= 1.0.0"
 
   backend "s3" {
-    bucket         = "{{ .project.name }}-{{ .project.environment }}-terraform-state"
+    bucket         = "{{ .locals.name }}-{{ .locals.environment }}-terraform-state"
     key            = "base-infra/terraform.tfstate"
-    region         = "{{ .project.region }}"
+    region         = "{{ .locals.region }}"
     encrypt        = true
-    dynamodb_table = "{{ .project.name }}-{{ .project.environment }}-terraform-locks"
+    dynamodb_table = "{{ .locals.name }}-{{ .locals.environment }}-terraform-lock"
   }
 }
 
 provider "aws" {
-  region  = "{{ .project.region }}"
-  profile = "{{ .provider.aws.profile }}"
+  region  = "{{ .locals.region }}"
 
   default_tags {
     tags = local.tags

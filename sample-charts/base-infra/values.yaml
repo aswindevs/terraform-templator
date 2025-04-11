@@ -31,5 +31,5 @@ rds:
     engine_version: "14"
     instance_class: db.t3.micro
     allocated_storage: 20
-    db_name: appdb
-    username: admin # Should be provided via environment or secrets
+    username: postgres # Should be provided via environment or secrets
+    password: xxxxxxxx # Should be provided via environment or secrets
