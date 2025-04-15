@@ -58,19 +58,22 @@ func (r *chartRepo) PullChart(registry string) (string, error) {
 
 	// Process each layer
 	var chartName string
-	if name := pulledManifest.Annotations["org.opencontainers.image.title"]; name != "" {
-		chartName = name
-	}
-	filename := fmt.Sprintf("%s.tgz", chartName)
-	filePath := path.Join(chartDir, filename)
-	logger.Info("Downloading chart", logger.String("name", chartName))
-	chartBlob, err := content.FetchAll(ctx, repo, pulledManifest.Layers[0])
-	if err != nil {
-		return "", fmt.Errorf("failed to fetch chart: %w", err)
-	}
+	var filePath string
+	for _, layer := range pulledManifest.Layers {
+		if name := pulledManifest.Annotations["org.opencontainers.image.title"]; name != "" {
+			chartName = name
+		}
+		filename := fmt.Sprintf("%s.tgz", chartName)
+		filePath = path.Join(chartDir, filename)
+		logger.Info("Downloading chart", logger.String("name", chartName))
+		chartBlob, err := content.FetchAll(ctx, repo, layer)
+		if err != nil {
+			return "", fmt.Errorf("failed to fetch chart: %w", err)
+		}
 
-	if err := os.WriteFile(filePath, chartBlob, 0644); err != nil {
-		return "", fmt.Errorf("failed to write chart: %w", err)
+		if err := os.WriteFile(filePath, chartBlob, 0644); err != nil {
+			return "", fmt.Errorf("failed to write chart: %w", err)
+		}
 	}
 
 	// Extract and cleanup
@@ -84,7 +87,7 @@ func (r *chartRepo) PullChart(registry string) (string, error) {
 			logger.String("file", filePath),
 			logger.String("error", err.Error()))
 	}
-	// }
+
 	chartPath := path.Join(chartDir, chartName)
 	return chartPath, nil
 }

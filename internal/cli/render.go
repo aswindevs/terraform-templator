@@ -31,23 +31,15 @@ Example:
 		// Initialize dependencies
 		templateRepo := repo.NewTemplateRepo()
 		chartRepo := repo.NewChartRepo()
-		templateUseCase := usecase.NewTemplateUseCase(templateRepo)
-		chartUseCase := usecase.NewChartUseCase(chartRepo)
+		templateUseCase := usecase.NewTemplateUseCase(templateRepo, chartRepo)
 
-		if useLocalChart != true {
-			pulledChartPath, err := chartUseCase.PullChart(chartPath)
-			if err != nil {
-				logger.Error("Failed to pull helm chart", logger.ErrorField("error", err))
-			}
-			chartPath = pulledChartPath
-		}
 		if valuesFile == "" {
 			valuesFile = "values.yaml"
 			logger.Info("Using default values file", logger.String("file", valuesFile))
 		}
 
 		// Render chart
-		if err := templateUseCase.RenderChart(valuesFile, chartPath, outputDir); err != nil {
+		if err := templateUseCase.RenderChart(valuesFile, chartPath, outputDir, useLocalChart); err != nil {
 			return logger.Error("Chart rendering failed", logger.ErrorField("error", err))
 
 		}
