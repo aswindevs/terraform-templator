@@ -19,32 +19,24 @@ func NewTemplateRepo() *templateRepo {
 	return &templateRepo{}
 }
 
-func (r *templateRepo) RenderChart(chartPath, outputDir, valuesFile string) error {
-	// Load the chart
-	chart, err := r.LoadChart(chartPath)
+func (r *templateRepo) LoadValues(valuesFile string) (map[string]interface{}, error) {
+
+	logger.Debug("Loading values file", logger.String("file", valuesFile))
+	data, err := os.ReadFile(valuesFile)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	// Validate the chart
-	if err := r.ValidateChart(chart); err != nil {
-		return err
+	var values map[string]interface{}
+	if err := yaml.Unmarshal(data, &values); err != nil {
+		return nil, err
 	}
 
-	// Create output directory
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		return err
-	}
-
-	// Render each template
-	for _, tmpl := range chart.Templates {
-		if err := r.RenderTemplate(tmpl, chart.Values, outputDir); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	logger.Debug("Values file loaded successfully",
+		logger.Int("key_count", len(values)))
+	return values, nil
 }
+
 
 func (r *templateRepo) LoadChart(chartPath string) (*entity.Chart, error) {
 	logger.Debug("Loading chart", logger.String("path", chartPath))
