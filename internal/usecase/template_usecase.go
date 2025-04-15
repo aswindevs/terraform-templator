@@ -39,7 +39,8 @@ func (u *TemplateUseCase) RenderChart(valuesFile, chartPath, outputDir string, u
 			logger.Error("Failed to pull chart",
 				logger.String("path", chartPath),
 				logger.ErrorField("error", err))
-		}
+			return err
+			}
 		chartPath = chart
 	}
 

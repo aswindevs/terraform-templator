@@ -27,7 +27,7 @@ func (r *chartRepo) PullChart(registry string) (string, error) {
 	// Create repository with full reference
 	repo, err := remote.NewRepository(registry)
 	if err != nil {
-		return "", fmt.Errorf("failed to create repository: %w", err)
+		return "", err
 	}
 
 	logger.Info("Pulling Chart", logger.String("registry", registry))
@@ -35,25 +35,25 @@ func (r *chartRepo) PullChart(registry string) (string, error) {
 	// Get manifest
 	manifestDescriptor, rc, err := repo.FetchReference(ctx, registry)
 	if err != nil {
-		return "", fmt.Errorf("failed to fetch manifest: %w", err)
+		return "", err
 	}
 	defer rc.Close()
 
 	// Read and parse manifest
 	pulledContent, err := content.ReadAll(rc, manifestDescriptor)
 	if err != nil {
-		return "", fmt.Errorf("failed to read manifest: %w", err)
+		return "", err
 	}
 
 	var pulledManifest ocispec.Manifest
 	if err := json.Unmarshal(pulledContent, &pulledManifest); err != nil {
-		return "", fmt.Errorf("failed to parse manifest: %w", err)
+		return "", err
 	}
 
 	// Create output directory with proper permissions
 	chartDir := "charts"
 	if err := os.MkdirAll(chartDir, 0755); err != nil {
-		return "", fmt.Errorf("failed to create output directory: %w", err)
+		return "", err
 	}
 
 	// Process each layer
@@ -68,18 +68,18 @@ func (r *chartRepo) PullChart(registry string) (string, error) {
 		logger.Info("Downloading chart", logger.String("name", chartName))
 		chartBlob, err := content.FetchAll(ctx, repo, layer)
 		if err != nil {
-			return "", fmt.Errorf("failed to fetch chart: %w", err)
+			return "", err
 		}
 
 		if err := os.WriteFile(filePath, chartBlob, 0644); err != nil {
-			return "", fmt.Errorf("failed to write chart: %w", err)
+			return "", err
 		}
 	}
 
 	// Extract and cleanup
 	cmd := exec.Command("tar", "-xzf", filePath, "-C", chartDir)
 	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("Failed to extract chart: %w", err)
+		return "", err
 	}
 
 	if err := os.Remove(filePath); err != nil {
