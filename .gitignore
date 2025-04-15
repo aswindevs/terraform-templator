@@ -1,4 +1,7 @@
 output/*
+build
+charts
+
 **/.terraform/*
 .terraform.*
 *.tgz

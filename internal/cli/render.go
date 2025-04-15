@@ -5,6 +5,7 @@ import (
 	"terraform-templator/internal/repo"
 	"terraform-templator/internal/usecase"
 
+	"strings"
 	"github.com/spf13/cobra"
 )
 
@@ -30,9 +31,16 @@ Example:
 		templateRepo := repo.NewTemplateRepo()
 		templateUseCase := usecase.NewTemplateUseCase(templateRepo)
 
-		// Validate inputs
-		if chartPath == "" {
-			return logger.Error("Invalid input - chart path is required")
+        // Validate inputs
+		switch {
+		    case chartPath == "":
+		    	return logger.Error("Invalid input - chart path is required")
+		    case strings.Contains(chartPath, "public.ecr.aws"):
+		    	pulledChartPath, err := usecase.PullHelmChart(chartPath)
+		    	if err != nil {
+		    		return logger.Error("Failed to pull helm chart", logger.ErrorField("error", err))
+		    	}
+		    	chartPath = pulledChartPath
 		}
 		if valuesFile == "" {
 			valuesFile = "values.yaml"
@@ -54,7 +62,7 @@ Example:
 func init() {
 	rootCmd.AddCommand(renderCmd)
 
-	renderCmd.Flags().StringVarP(&chartPath, "chart", "c", "", "Path to chart directory")
+	renderCmd.Flags().StringVarP(&chartPath, "chart", "c", "", "Local path to chart directory or helm chart registry (Eg: oci://public.ecr.aws/xx/xx/1.0.0)")
 	renderCmd.Flags().StringVarP(&outputDir, "output", "o", "output", "Path to output directory")
 	renderCmd.Flags().StringVarP(&valuesFile, "values", "f", "values.yaml", "Path to values file")
 
