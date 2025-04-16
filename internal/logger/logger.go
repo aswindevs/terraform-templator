@@ -3,6 +3,7 @@ package logger
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -28,8 +29,19 @@ func init() {
 	}
 
 	config := zap.NewProductionConfig()
+	config.DisableCaller = true
+	config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 	config.EncoderConfig.TimeKey = "timestamp"
-	config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	config.EncoderConfig.EncodeTime = func(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
+		enc.AppendString(t.Format("02-01-2006 15:04:05"))
+	}
+
+	if logMode != "json" {
+		config.EncoderConfig.EncodeName = func(name string, enc zapcore.PrimitiveArrayEncoder) {
+			enc.AppendString(name + " | ")
+		}
+		config.EncoderConfig.ConsoleSeparator = " | "
+	}
 
 	// Set log level from environment variable
 	switch logLevel {

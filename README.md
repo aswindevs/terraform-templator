@@ -59,15 +59,18 @@ ecs:
 
 ### Basic Usage
 
-```bash
-terraformesh render --chart ./charts/my-chart --output ./output
+```
+- bash terraformesh render --localchart=true --chart ./charts/my-chart --output ./output
+
+- bash terraformesh render --chart public.ecr.aws/xxx/xxx/2.0.0 --output ./output
 ```
 
 ### Command Options
 
-- `--chart, -c`: Path to chart directory (required)
+- `--chart, -c`: Path to chart directory or public chart registry URL (required)
 - `--output, -o`: Path to output directory (default: "output")
 - `--values, -f`: Path to values file (default: "values.yaml")
+- `--localchart, -l`: Whether to use local chart (default: false)
 
 ### Logging Configuration
 
@@ -81,7 +84,7 @@ export LOG_LEVEL=debug
 export LOG_MODE=json
 
 # Run the command
-terraformesh render --chart ./charts/my-chart
+terraformesh render --localchart=true --chart ./charts/my-chart
 ```
 
 ## Development

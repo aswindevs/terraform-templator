@@ -37,3 +37,7 @@ type ChartTemplate struct {
 	Path    string
 	Content string
 }
+
+type ChartRepository interface {
+	PullChart(registry string) (string, error)
+}
