@@ -8,6 +8,7 @@ type Template struct {
 }
 
 type TemplateRepository interface {
+	LoadValues(valuesFile string) (map[string]interface{}, error)
 	LoadChart(chartPath string) (*Chart, error)
 	ValidateChart(chart *Chart) error
 	RenderTemplate(tmpl ChartTemplate, values map[string]interface{}, outputDir string) error

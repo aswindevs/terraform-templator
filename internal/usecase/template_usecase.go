@@ -4,28 +4,28 @@ import (
 	"os"
 	"terraform-templator/internal/entity"
 	"terraform-templator/internal/logger"
-
-	"gopkg.in/yaml.v3"
 )
 
 type TemplateUseCase struct {
-	repo entity.TemplateRepository
+	templateRepo entity.TemplateRepository
+	chartRepo    entity.ChartRepository
 }
 
-func NewTemplateUseCase(repo entity.TemplateRepository) *TemplateUseCase {
+func NewTemplateUseCase(templateRepo entity.TemplateRepository, chartRepo entity.ChartRepository) *TemplateUseCase {
 	return &TemplateUseCase{
-		repo: repo,
+		templateRepo: templateRepo,
+		chartRepo:    chartRepo,
 	}
 }
 
-func (u *TemplateUseCase) RenderChart(valuesFile, chartPath, outputDir string) error {
+func (u *TemplateUseCase) RenderChart(valuesFile, chartPath, outputDir string, useLocalChart bool) error {
 	logger.Debug("Starting chart rendering",
 		logger.String("chart_path", chartPath),
 		logger.String("values_file", valuesFile),
 		logger.String("output_dir", outputDir))
 
 	// Load values from file
-	values, err := loadValues(valuesFile)
+	values, err := u.templateRepo.LoadValues(valuesFile)
 	if err != nil {
 		logger.Error("Failed to load values file",
 			logger.String("file", valuesFile),
@@ -33,8 +33,19 @@ func (u *TemplateUseCase) RenderChart(valuesFile, chartPath, outputDir string) e
 		return err
 	}
 
+	if useLocalChart != true {
+		chart, err := u.chartRepo.PullChart(chartPath)
+		if err != nil {
+			logger.Error("Failed to pull chart",
+				logger.String("path", chartPath),
+				logger.ErrorField("error", err))
+			return err
+			}
+		chartPath = chart
+	}
+
 	// Load the chart
-	chart, err := u.repo.LoadChart(chartPath)
+	chart, err := u.templateRepo.LoadChart(chartPath)
 	if err != nil {
 		logger.Error("Failed to load chart",
 			logger.String("path", chartPath),
@@ -43,7 +54,7 @@ func (u *TemplateUseCase) RenderChart(valuesFile, chartPath, outputDir string) e
 	}
 
 	// Validate the chart
-	if err := u.repo.ValidateChart(chart); err != nil {
+	if err := u.templateRepo.ValidateChart(chart); err != nil {
 		logger.Error("Chart validation failed",
 			logger.String("name", chart.Name),
 			logger.ErrorField("error", err))
@@ -60,7 +71,7 @@ func (u *TemplateUseCase) RenderChart(valuesFile, chartPath, outputDir string) e
 
 	// Render each template
 	for _, tmpl := range chart.Templates {
-		if err := u.repo.RenderTemplate(tmpl, values, outputDir); err != nil {
+		if err := u.templateRepo.RenderTemplate(tmpl, values, outputDir); err != nil {
 			logger.Error("Failed to render template",
 				logger.String("name", tmpl.Name),
 				logger.ErrorField("error", err))
@@ -72,22 +83,4 @@ func (u *TemplateUseCase) RenderChart(valuesFile, chartPath, outputDir string) e
 		logger.String("chart", chart.Name),
 		logger.String("version", chart.Version))
 	return nil
-}
-
-func loadValues(valuesFile string) (map[string]interface{}, error) {
-	logger.Debug("Loading values file", logger.String("file", valuesFile))
-
-	data, err := os.ReadFile(valuesFile)
-	if err != nil {
-		return nil, err
-	}
-
-	var values map[string]interface{}
-	if err := yaml.Unmarshal(data, &values); err != nil {
-		return nil, err
-	}
-
-	logger.Debug("Values file loaded successfully",
-		logger.Int("key_count", len(values)))
-	return values, nil
 }

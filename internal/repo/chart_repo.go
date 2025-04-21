@@ -1,14 +1,18 @@
 package repo
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
 	"os"
-	"path/filepath"
-	"strings"
+	"os/exec"
+	"path"
 
-	"terraform-templator/internal/entity"
 	"terraform-templator/internal/logger"
 
-	"gopkg.in/yaml.v2"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"oras.land/oras-go/v2/content"
+	"oras.land/oras-go/v2/registry/remote"
 )
 
 type chartRepo struct{}
@@ -17,71 +21,73 @@ func NewChartRepo() *chartRepo {
 	return &chartRepo{}
 }
 
-func (r *chartRepo) LoadChart(chartPath, valuesFile string) (*entity.Chart, error) {
-	// Read Chart.yaml
-	chartYAML, err := os.ReadFile(filepath.Join(chartPath, "Chart.yaml"))
+func (r *chartRepo) PullChart(registry string) (string, error) {
+	ctx := context.Background()
+
+	// Create repository with full reference
+	repo, err := remote.NewRepository(registry)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	var chart entity.Chart
-	if err := yaml.Unmarshal(chartYAML, &chart.Metadata); err != nil {
-		return nil, err
-	}
+	logger.Info("Pulling Chart", logger.String("registry", registry))
 
-	// Read values.yaml
-	valuesYAML, err := os.ReadFile(valuesFile)
+	// Get manifest
+	manifestDescriptor, rc, err := repo.FetchReference(ctx, registry)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
+	defer rc.Close()
 
-	if err := yaml.Unmarshal(valuesYAML, &chart.Values); err != nil {
-		return nil, err
-	}
-
-	// Load templates
-	templatesDir := filepath.Join(chartPath, "templates")
-	files, err := os.ReadDir(templatesDir)
+	// Read and parse manifest
+	pulledContent, err := content.ReadAll(rc, manifestDescriptor)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	for _, file := range files {
-		content, err := os.ReadFile(filepath.Join(templatesDir, file.Name()))
-		if err != nil {
-			return nil, err
+	var pulledManifest ocispec.Manifest
+	if err := json.Unmarshal(pulledContent, &pulledManifest); err != nil {
+		return "", err
+	}
+
+	// Create output directory with proper permissions
+	chartDir := "charts"
+	if err := os.MkdirAll(chartDir, 0755); err != nil {
+		return "", err
+	}
+
+	// Process each layer
+	var chartName string
+	var filePath string
+	for _, layer := range pulledManifest.Layers {
+		if name := pulledManifest.Annotations["org.opencontainers.image.title"]; name != "" {
+			chartName = name
 		}
-		chart.Templates = append(chart.Templates, entity.ChartTemplate{
-			Name:    strings.TrimSuffix(file.Name(), ".tf"),
-			Content: string(content),
-			Path:    file.Name(),
-		})
+		filename := fmt.Sprintf("%s.tgz", chartName)
+		filePath = path.Join(chartDir, filename)
+		logger.Info("Downloading chart", logger.String("name", chartName))
+		chartBlob, err := content.FetchAll(ctx, repo, layer)
+		if err != nil {
+			return "", err
+		}
+
+		if err := os.WriteFile(filePath, chartBlob, 0644); err != nil {
+			return "", err
+		}
 	}
 
-	return &chart, nil
-}
-
-func (r *chartRepo) ValidateChart(chart *entity.Chart) error {
-	// Validate required fields
-	if chart.Metadata.Name == "" {
-		return logger.Error("Chart validation failed", logger.String("error", "chart name is required"))
-	}
-	if chart.Metadata.Version == "" {
-		return logger.Error("Chart validation failed", logger.String("error", "chart version is required"))
-	}
-	if chart.Metadata.Type == "" {
-		return logger.Error("Chart validation failed", logger.String("error", "chart type is required"))
+	// Extract and cleanup
+	cmd := exec.Command("tar", "-xzf", filePath, "-C", chartDir)
+	if err := cmd.Run(); err != nil {
+		return "", err
 	}
 
-	// Validate templates
-	if len(chart.Templates) == 0 {
-		return logger.Error("Chart validation failed", logger.String("error", "chart must contain at least one template"))
+	if err := os.Remove(filePath); err != nil {
+		logger.Info("Failed to remove temporary file",
+			logger.String("file", filePath),
+			logger.String("error", err.Error()))
 	}
 
-	// Validate values
-	if len(chart.Values) == 0 {
-		return logger.Error("Chart validation failed", logger.String("error", "chart must contain values"))
-	}
-
-	return nil
+	chartPath := path.Join(chartDir, chartName)
+	return chartPath, nil
 }

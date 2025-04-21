@@ -1,7 +1,7 @@
 name: base-infra
 version: 1.0.0
 description: A comprehensive base infrastructure chart for AWS including VPC, ECS, and essential resources
-type: aws
+type: application
 author: Your Name
 home: https://github.com/yourusername/terraform-templator
 keywords:
