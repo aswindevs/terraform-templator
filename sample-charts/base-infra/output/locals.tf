@@ -1,12 +1,12 @@
 locals {
-  name           = "{{ .locals.name }}"
-  environment    = "{{ .locals.environment }}"
-  region         = "{{ .locals.region }}"
+  name           = "my-project"
+  environment    = "dev"
+  region         = "us-west-2"
   project_prefix = "${local.name}-${local.environment}-${local.region_code[local.region]}"
   tags = {
-    {{- range $key, $value := .locals.tags }}
-    {{ printf "%-12s" $key }} = "{{ $value }}"
-    {{- end }}
+    Environment  = "dev"
+    ManagedBy    = "terraform-templator"
+    Project      = "my-project"
   }
 
   vpc_tags = merge(
@@ -17,53 +17,40 @@ locals {
   )
 
   subnet_tags = {
-    {{- if .vpc.enable -}}
-    {{- range $vpcKey, $vpcValue := .vpc }}
-    {{- if ne $vpcKey "enable" }}
-    {{- range .subnets }}
-    "{{ .type }}_{{ .availability_zone }}" = merge(
+    "public_us-west-2a" = merge(
       local.tags,
       {
-        Name = "${local.name}-{{ .type }}-{{ .availability_zone }}"
-        Type = "{{ .type }}"
+        Name = "${local.name}-public-us-west-2a"
+        Type = "public"
       }
     )
-    {{- end }}
-    {{- end }}
-    {{- end }}
-    {{- end }}
+    "private_us-west-2b" = merge(
+      local.tags,
+      {
+        Name = "${local.name}-private-us-west-2b"
+        Type = "private"
+      }
+    )
+    "private_us-west-2c" = merge(
+      local.tags,
+      {
+        Name = "${local.name}-private-us-west-2c"
+        Type = "private"
+      }
+    )
   }
-
-  {{- if .eks.enable }}
   eks_tags = merge(
     local.tags,
     {
       Name = "${local.name}-eks-cluster"
     }
   )
-  {{- end }}
-
-  {{- if .ecs.enable }}
   ecs_tags = merge(
     local.tags,
     {
       Name = "${local.name}-ecs-cluster"
     }
   )
-  {{- end }}
-
-  {{- if .ecr.enable }}
-  ecr_tags = {
-    {{- range .ecr.repositories }}
-    "{{ .name }}" = merge(
-      local.tags,
-      {
-        Name = "${local.name}-{{ .name }}-repo"
-      }
-    )
-    {{- end }}
-  }
-  {{- end }}
 
   region_code = {
     us-east-2      = "oh" # Ohio
