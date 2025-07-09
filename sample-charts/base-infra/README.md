@@ -28,39 +28,35 @@ base-infra/
 - Consistent tagging
 
 ### EKS Configuration
+- **Module-based**: Uses `terraform-aws-modules/eks/aws` for consistency
 - Kubernetes cluster with configurable version
-- Multiple node groups with different instance types and capacity types
+- EKS managed node groups with different instance types and capacity types
 - Support for both ON_DEMAND and SPOT instances
-- Node group scaling configuration
-- IAM roles for cluster, node groups, and Fargate
-- OIDC provider for service account integration
+- Node group auto-scaling configuration
+- IAM roles and service accounts (IRSA) automatically configured
 - Essential add-ons (VPC CNI, CoreDNS, kube-proxy, EBS CSI driver)
 - CloudWatch logging with configurable retention
 - Optional Fargate profiles for serverless workloads
 - Consistent tagging and naming conventions
 
 ### ECS Configuration
-- Fargate cluster setup with multiple capacity providers
-- Container insights enabled
+- **Module-based**: Uses `terraform-aws-modules/ecs/aws` for consistency
+- Fargate cluster with configurable capacity providers
+- Container insights support
 - CloudWatch logging with configurable retention
 - Service discovery namespace support
-- IAM roles for task execution, task, and autoscaling
-- Auto scaling configuration
-- Capacity provider strategy configuration
-
-### ECR Configuration
-- Multiple repository support
-- Image tag mutability settings
-- Scan on push enabled
-- Lifecycle policies for cleanup
-- Consistent tagging
+- Auto scaling configuration with managed scaling
+- Execute command configuration for debugging
 
 ### RDS Configuration
-- Optional PostgreSQL database
-- Configurable instance class
-- Private subnet placement
-- Automated backups
-- Consistent tagging
+- **Module-based**: Uses `terraform-aws-modules/rds/aws` for consistency
+- PostgreSQL database support
+- Configurable instance class and storage
+- Private subnet placement for security
+- Automated backups and maintenance
+- Consistent tagging and naming
+
+*Note: ECR support is planned but not yet implemented.*
 
 ## Configuration
 
@@ -115,11 +111,7 @@ The chart can be configured through the `values.yaml` file. Here are the main co
 - `ecs.cluster.default_capacity_provider_strategy`: Capacity provider strategy configuration
 - `ecs.cluster.log_retention_days`: CloudWatch log retention in days
 - `ecs.cluster.service_discovery`: Service discovery namespace configuration
-- `ecs.cluster.autoscaling`: Enable autoscaling roles
-
-### ECR Settings
-- `ecr.enable`: Enable/disable ECR repositories
-- `ecr.repositories`: List of repository configurations
+- `ecs.cluster.autoscaling`: Enable autoscaling configuration
 
 ### RDS Settings
 - `rds.enable`: Enable/disable RDS instance
@@ -158,9 +150,6 @@ ecs:
   
 rds:
   enable: true
-  
-ecr:
-  enable: true
 ```
 
 ```yaml
@@ -176,20 +165,18 @@ ecs:
   
 rds:
   enable: false  # RDS template will be empty
-  
-ecr:
-  enable: false  # ECR template will be empty
 ```
 
 ## Dependencies
 
 This chart uses the following Terraform modules and providers:
-- terraform-aws-modules/vpc/aws (v5.0.0)
-- terraform-aws-modules/eks/aws (v19.0.0)
-- terraform-aws-modules/ecs/aws (v5.0.0)
-- terraform-aws-modules/ecr/aws (v1.6.0)
-- terraform-aws-modules/rds/aws (v6.0.0)
-- hashicorp/tls provider (for EKS OIDC)
+- **terraform-aws-modules/vpc/aws** (v5.0.0) - VPC and networking resources
+- **terraform-aws-modules/eks/aws** (v19.0.0) - EKS cluster and managed node groups
+- **terraform-aws-modules/ecs/aws** (v5.0.0) - ECS cluster with Fargate support
+- **terraform-aws-modules/rds/aws** (v6.0.0) - RDS database instances
+- **hashicorp/tls provider** - TLS certificate data for EKS OIDC
+
+All infrastructure components use well-maintained, community-tested Terraform modules for consistency, security, and best practices.
 
 ## Security Considerations
 

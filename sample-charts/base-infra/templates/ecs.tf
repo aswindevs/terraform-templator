@@ -1,57 +1,83 @@
 {{- if .ecs.enable -}}
 {{- range $key, $value := .ecs }}
 {{- if ne $key "enable" }}
-# ECS Cluster
-resource "aws_ecs_cluster" "{{ $key }}" {
-  name = "${local.project_prefix}-{{ $key }}"
+module "ecs_{{ $key }}" {
+  source  = "terraform-aws-modules/ecs/aws"
+  version = "~> 5.0"
 
-  setting {
-    name  = "containerInsights"
-    value = "{{ .container_insights | ternary "enabled" "disabled" }}"
+  cluster_name = "${local.project_prefix}-{{ $key }}"
+
+  # Cluster configuration
+  cluster_configuration = {
+    execute_command_configuration = {
+      logging = "OVERRIDE"
+      log_configuration = {
+        cloud_watch_log_group_name = "/aws/ecs/${local.project_prefix}-{{ $key }}"
+      }
+    }
+  }
+
+  # CloudWatch Log Groups
+  cloudwatch_log_group_name              = "/aws/ecs/${local.project_prefix}-{{ $key }}"
+  cloudwatch_log_group_retention_in_days = {{ .log_retention_days | default 14 }}
+
+  # Cluster settings
+  cluster_settings = {
+    "name"  = "containerInsights"
+    "value" = "{{ .container_insights | ternary "enabled" "disabled" }}"
   }
 
   {{- if .capacity_providers }}
-  capacity_providers = {{ .capacity_providers | toJson }}
+  # Capacity providers
+  default_capacity_provider_use_fargate = {{ has "FARGATE" .capacity_providers }}
+  fargate_capacity_providers = {
+    {{- if has "FARGATE" .capacity_providers }}
+    FARGATE = {
+      default_capacity_provider_strategy = {
+        weight = {{ (index .default_capacity_provider_strategy 0).weight | default 1 }}
+        base   = {{ (index .default_capacity_provider_strategy 0).base | default 0 }}
+      }
+    }
+    {{- end }}
+    {{- if has "FARGATE_SPOT" .capacity_providers }}
+    FARGATE_SPOT = {
+      default_capacity_provider_strategy = {
+        weight = {{ (index .default_capacity_provider_strategy 1).weight | default 1 }}
+        base   = {{ (index .default_capacity_provider_strategy 1).base | default 0 }}
+      }
+    }
+    {{- end }}
+  }
+  {{- end }}
+
+  {{- if .autoscaling }}
+  # Autoscaling
+  autoscaling_capacity_providers = {
+    {{- range .capacity_providers }}
+    {{ . }} = {
+      auto_scaling_group_arn         = ""
+      managed_termination_protection = "ENABLED"
+
+      managed_scaling = {
+        maximum_scaling_step_size = 5
+        minimum_scaling_step_size = 1
+        status                    = "ENABLED"
+        target_capacity           = 60
+      }
+
+      default_capacity_provider_strategy = {
+        weight = 60
+        base   = 20
+      }
+    }
+    {{- end }}
+  }
   {{- end }}
 
   tags = merge(
     local.tags,
     {
       Name = "${local.project_prefix}-{{ $key }}"
-    }
-  )
-}
-
-{{- if .capacity_providers }}
-# ECS Cluster Capacity Providers
-resource "aws_ecs_cluster_capacity_providers" "{{ $key }}" {
-  cluster_name = aws_ecs_cluster.{{ $key }}.name
-
-  capacity_providers = {{ .capacity_providers | toJson }}
-
-  {{- if .default_capacity_provider_strategy }}
-  {{- range .default_capacity_provider_strategy }}
-  default_capacity_provider_strategy {
-    capacity_provider = "{{ .capacity_provider }}"
-    weight            = {{ .weight }}
-    {{- if .base }}
-    base              = {{ .base }}
-    {{- end }}
-  }
-  {{- end }}
-  {{- end }}
-}
-{{- end }}
-
-# CloudWatch Log Group for ECS
-resource "aws_cloudwatch_log_group" "{{ $key }}" {
-  name              = "/ecs/${local.project_prefix}-{{ $key }}"
-  retention_in_days = {{ .log_retention_days | default 14 }}
-
-  tags = merge(
-    local.tags,
-    {
-      Name = "${local.project_prefix}-{{ $key }}-logs"
     }
   )
 }
@@ -69,94 +95,6 @@ resource "aws_service_discovery_private_dns_namespace" "{{ $key }}" {
       Name = "${local.project_prefix}-{{ $key }}-discovery"
     }
   )
-}
-{{- end }}
-
-# ECS Task Execution Role
-resource "aws_iam_role" "ecs_task_execution_{{ $key }}" {
-  name = "${local.project_prefix}-{{ $key }}-task-execution"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "ecs-tasks.amazonaws.com"
-        }
-      }
-    ]
-  })
-
-  tags = merge(
-    local.tags,
-    {
-      Name = "${local.project_prefix}-{{ $key }}-task-execution"
-    }
-  )
-}
-
-# Attach ECS Task Execution Role Policy
-resource "aws_iam_role_policy_attachment" "ecs_task_execution_{{ $key }}" {
-  role       = aws_iam_role.ecs_task_execution_{{ $key }}.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
-}
-
-# ECS Task Role
-resource "aws_iam_role" "ecs_task_{{ $key }}" {
-  name = "${local.project_prefix}-{{ $key }}-task"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "ecs-tasks.amazonaws.com"
-        }
-      }
-    ]
-  })
-
-  tags = merge(
-    local.tags,
-    {
-      Name = "${local.project_prefix}-{{ $key }}-task"
-    }
-  )
-}
-
-{{- if .autoscaling }}
-# Auto Scaling Role
-resource "aws_iam_role" "ecs_autoscaling_{{ $key }}" {
-  name = "${local.project_prefix}-{{ $key }}-autoscaling"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "application-autoscaling.amazonaws.com"
-        }
-      }
-    ]
-  })
-
-  tags = merge(
-    local.tags,
-    {
-      Name = "${local.project_prefix}-{{ $key }}-autoscaling"
-    }
-  )
-}
-
-resource "aws_iam_role_policy_attachment" "ecs_autoscaling_{{ $key }}" {
-  role       = aws_iam_role.ecs_autoscaling_{{ $key }}.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSServiceRolePolicy"
 }
 {{- end }}
 
