@@ -1,5 +1,6 @@
-{{- if .rds -}}
+{{- if .rds.enable -}}
 {{- range $key, $value := .rds }}
+{{- if ne $key "enable" }}
 module "rds_{{ $key }}" {
   source                    = "terraform-aws-modules/rds/aws"
   version                   = "6.0.0"
@@ -24,5 +25,6 @@ module "rds_{{ $key }}" {
     }
   )
 }
+{{- end }}
 {{- end }}
 {{- end }}

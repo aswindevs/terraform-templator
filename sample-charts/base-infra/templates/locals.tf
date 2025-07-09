@@ -17,7 +17,10 @@ locals {
   )
 
   subnet_tags = {
-    {{- range .vpc.subnets }}
+    {{- if .vpc.enable -}}
+    {{- range $vpcKey, $vpcValue := .vpc }}
+    {{- if ne $vpcKey "enable" }}
+    {{- range .subnets }}
     "{{ .type }}_{{ .availability_zone }}" = merge(
       local.tags,
       {
@@ -26,15 +29,30 @@ locals {
       }
     )
     {{- end }}
+    {{- end }}
+    {{- end }}
+    {{- end }}
   }
 
+  {{- if .eks.enable }}
+  eks_tags = merge(
+    local.tags,
+    {
+      Name = "${local.name}-eks-cluster"
+    }
+  )
+  {{- end }}
+
+  {{- if .ecs.enable }}
   ecs_tags = merge(
     local.tags,
     {
       Name = "${local.name}-ecs-cluster"
     }
   )
+  {{- end }}
 
+  {{- if .ecr.enable }}
   ecr_tags = {
     {{- range .ecr.repositories }}
     "{{ .name }}" = merge(
@@ -45,8 +63,9 @@ locals {
     )
     {{- end }}
   }
+  {{- end }}
 
-    region_code = {
+  region_code = {
     us-east-2      = "oh" # Ohio
     us-east-1      = "nv" # US East (N. Virginia)
     us-west-1      = "ca" # N. California

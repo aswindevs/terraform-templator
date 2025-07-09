@@ -2,6 +2,10 @@ locals:
   name: my-project
   environment: dev
   region: us-west-2
+  tags:
+    Environment: dev
+    Project: my-project
+    ManagedBy: terraform-templator
 
 provider:
   aws:
@@ -9,6 +13,7 @@ provider:
     profile: default
 
 vpc:
+  enable: true
   prime:
     module: 
     cidr: 10.0.0.0/16
@@ -26,6 +31,7 @@ vpc:
         availability_zone: us-west-2c
 
 rds:
+  enable: true
   prime:  
     engine: postgres
     engine_version: "14"
@@ -33,3 +39,91 @@ rds:
     allocated_storage: 20
     username: postgres # Should be provided via environment or secrets
     password: xxxxxxxx # Should be provided via environment or secrets
+
+# ECS Configuration
+ecs:
+  enable: true
+  cluster:
+    container_insights: true
+    capacity_providers: ["FARGATE", "FARGATE_SPOT"]
+    default_capacity_provider_strategy:
+      - capacity_provider: "FARGATE"
+        weight: 1
+        base: 1
+      - capacity_provider: "FARGATE_SPOT"
+        weight: 4
+    log_retention_days: 14
+    service_discovery:
+      namespace: "myproject.local"
+    autoscaling: true
+
+ecr:
+  enable: false
+  repositories:
+    - name: app
+      image_tag_mutability: MUTABLE
+      scan_on_push: true
+
+# EKS Configuration
+eks:
+  enable: true
+  cluster:
+    cluster_version: "1.28"
+    endpoint_private_access: true
+    endpoint_public_access: true
+    endpoint_public_access_cidrs: ["0.0.0.0/0"]
+    enabled_cluster_log_types: ["api", "audit", "authenticator", "controllerManager", "scheduler"]
+    log_retention_days: 14
+    node_groups:
+      default:
+        instance_types: ["t3.medium"]
+        ami_type: "AL2_x86_64"
+        capacity_type: "ON_DEMAND"
+        disk_size: 20
+        desired_size: 2
+        max_size: 4
+        min_size: 1
+        labels:
+          Environment: "dev"
+          NodeGroup: "default"
+        # remote_access:
+        #   ec2_ssh_key: "my-key-pair"
+        #   source_security_group_ids: ["sg-12345678"]
+        # taints:
+        #   - key: "dedicated"
+        #     value: "application"
+        #     effect: "NO_SCHEDULE"
+      spot:
+        instance_types: ["t3.medium", "t3.large"]
+        ami_type: "AL2_x86_64"
+        capacity_type: "SPOT"
+        disk_size: 20
+        desired_size: 1
+        max_size: 3
+        min_size: 0
+        labels:
+          Environment: "dev"
+          NodeGroup: "spot"
+          CapacityType: "spot"
+    addons:
+      vpc-cni:
+        version: "latest"
+        resolve_conflicts: "OVERWRITE"
+      coredns:
+        version: "latest"
+        resolve_conflicts: "OVERWRITE"
+      kube-proxy:
+        version: "latest"
+        resolve_conflicts: "OVERWRITE"
+      aws-ebs-csi-driver:
+        version: "latest"
+        resolve_conflicts: "OVERWRITE"
+    # fargate_profiles:
+    #   default:
+    #     namespace: "default"
+    #     labels:
+    #       compute: "fargate"
+    #   kube-system:
+    #     namespace: "kube-system"
+    #     labels:
+    #       compute: "fargate"
