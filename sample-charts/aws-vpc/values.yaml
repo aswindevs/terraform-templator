@@ -1,3 +1,6 @@
+locals:
+  enable: true
+
 project:
   name: my-project
   environment: dev

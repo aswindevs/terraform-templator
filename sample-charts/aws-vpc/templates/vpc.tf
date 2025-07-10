@@ -13,7 +13,7 @@ resource "aws_vpc" "main" {
 }
 
 {{- range .vpc.subnets }}
-resource "aws_subnet" "{{ .type }}_{{ .availability_zone }}" {
+resource "aws_subnet" "{{ .type }}_{{ .availability_zone | replace "-" "_" }}" {
   vpc_id                  = aws_vpc.main.id
   cidr_block              = "{{ .cidr }}"
   availability_zone       = "{{ .availability_zone }}"
@@ -40,17 +40,21 @@ resource "aws_eip" "nat" {
   )
 }
 
+{{- range .vpc.subnets }}
+{{- if eq .type "public" }}
 resource "aws_nat_gateway" "main" {
   allocation_id = aws_eip.nat.id
-  subnet_id     = aws_subnet.public_us-west-2a.id
+  subnet_id     = aws_subnet.{{ .type }}_{{ .availability_zone | replace "-" "_" }}.id
 
   tags = merge(
     local.tags,
     {
-      Name = "{{ .project.name }}-{{ .project.environment }}-nat"
+      Name = "{{ $.project.name }}-{{ $.project.environment }}-nat"
     }
   )
 }
+{{- end }}
+{{- end }}
 {{- end }}
 
 {{- if .vpc.enable_vpn }}
