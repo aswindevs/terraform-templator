@@ -40,11 +40,13 @@ resource "aws_eip" "nat" {
   )
 }
 
+{{- $firstPublicSubnet := "" }}
 {{- range .vpc.subnets }}
-{{- if eq .type "public" }}
+{{- if and (eq .type "public") (eq $firstPublicSubnet "") }}
+{{- $firstPublicSubnet = printf "%s_%s" .type (.availability_zone | replace "-" "_") }}
 resource "aws_nat_gateway" "main" {
   allocation_id = aws_eip.nat.id
-  subnet_id     = aws_subnet.{{ .type }}_{{ .availability_zone | replace "-" "_" }}.id
+  subnet_id     = aws_subnet.{{ $firstPublicSubnet }}.id
 
   tags = merge(
     local.tags,
