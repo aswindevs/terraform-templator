@@ -1,5 +1,6 @@
-{{- if .vpc -}}
+{{- if .vpc.enable -}}
 {{- range $key, $value := .vpc }}
+{{- if ne $key "enable" }}
 module "vpc_{{ $key }}" {
   source               = "terraform-aws-modules/vpc/aws"
   version              = "5.0.0"
@@ -13,5 +14,6 @@ module "vpc_{{ $key }}" {
   enable_dns_hostnames = true
   enable_dns_support   = true
 }
+{{- end }}
 {{- end }}
 {{- end }}
